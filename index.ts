@@ -6,13 +6,17 @@ import cors = require("cors");
 import bodyParser = require('body-parser');
 
 
+
 let smartCity = require("./routes/SmartCity");
 
 
 //Server variable initialization
 let app = express();
+app.use(express.json());
 app.use(cors());
-app.use(bodyParser.json()); //para poder enviar json con el POST
+app.use(bodyParser.json()); 
+//app.use(bodyParser.json({ type: 'application/*+json' })); //para poder enviar json con el POST
+
 
 
 app.use('/caso', smartCity);   

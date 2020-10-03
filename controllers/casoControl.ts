@@ -3,11 +3,10 @@
 
 
 async function postCaso (req, res){  //registrarse un usuario si el usuario ya existe da error
-    let c = req.body.addcaso;
+    let nombre = req.body.addcaso;
     console.log(req.body);
-    
         try{
-            console.log("Todo: "+ c)
+            console.log("Nombre recibido: "+ nombre)
             return res.status(201).send({message: "Nuevo Post añadido"}) 
             } 
         catch (err) {
@@ -15,5 +14,10 @@ async function postCaso (req, res){  //registrarse un usuario si el usuario ya e
             console.log(err);
             }
     }
+async function getFrase (req, res){ //me da datos de un estudiante especifico
+    let frase = "Esto es un get del server";
+    res.status(200).json(frase);
+    console.log(frase)
+    };
 
-    module.exports = {postCaso};
+    module.exports = {postCaso, getFrase};
