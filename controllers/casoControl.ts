@@ -1,14 +1,14 @@
 'use strict';
 import crypto = require('crypto');
-let rsa = require("../rsa/rsa");
 const bc = require('bigint-conversion');
-
+import { RSA  as classRSA} from "../rsa/rsa";
 
 let password = 'Lo que me de la gana';
 let algorithm = 'aes-256-cbc';
 let key = '89a1f34a907ff9f5d27309e73c113f8eb084f9da8a5fedc61bb1cba3f54fa5de'
 let keyBuf =Buffer.from(key, "hex")
 let keyPair;
+let rsa  = new classRSA;
 
 ///////////////////////AES//////////////////////////////
 async function postCaso (req, res){  //AES
@@ -94,14 +94,16 @@ async function getFrase (req, res){ //me da datos de un estudiante especifico  A
 
 ///////////////////////////////RSA/////////////////////////////
     async function getPublicKeyRSA(req, res) {
+
         try {
-          keyPair = await rsa.generateRandomKeys();
+          keyPair = await rsa.generateRandomKeys(); //NO PONER THIS
           res.status(200).send({
             e: bc.bigintToHex(keyPair["publicKey"]["e"]),
             n: bc.bigintToHex(keyPair["publicKey"]["n"])
           })
         }
         catch(err) {
+          console.log("hola"+ err)
           res.status(500).send ({ message: err})
         }
       }
@@ -110,7 +112,8 @@ async function getFrase (req, res){ //me da datos de un estudiante especifico  A
     async function postCasoRSA(req, res) {
         try {
           const c = req.body.msg;
-          const m = await keyPair["privateKey"].decrypt(bc.hexToBigint(c));
+          const m = await rsa.privateKey.decrypt(bc.hexToBigint(c))   //keyPair["privateKey"].decrypt(bc.hexToBigint(c));
+          console.log(bc.bigintToText(m))
           return res.status(200).send({msg: bc.bigintToHex(m)})
         }
         catch(err) {
@@ -130,11 +133,15 @@ async function getFrase (req, res){ //me da datos de un estudiante especifico  A
       }
 
     async function getFraseRSA(req, res) {
+      let msg= "Prueba frase"
+     // let encmsg= rsa.publicKey.encrypt(msg)
         try {
-          res.status(200).send({msg: "Prueba frase"})
+
+          res.status(200).send({msg:msg})
         } 
         catch (err) {
-          res.status(500).send({msg: "Went Wrong"})
+          console.log(err)
+          res.status(500).send({msg: err})
         }
       }
       
