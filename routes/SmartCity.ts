@@ -13,7 +13,8 @@ router.get('/getFrase', casoControl.getFrase);
 router.post('/addPostRSA', casoControl.postCasoRSA);
 router.post('/sign', casoControl.signMsgRSA);
 router.get('/getFraseRSA', casoControl.getFraseRSA);
-router.get('/publickey', casoControl.getPublicKeyRSA);
+router.post('/postpubKey', casoControl.postpubKeyRSA);
+router.get('/publickey', casoControl.getPublicKeyRSA);  
 
 
 module.exports = router;

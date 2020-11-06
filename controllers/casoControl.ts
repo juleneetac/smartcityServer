@@ -1,5 +1,7 @@
 'use strict';
 import crypto = require('crypto');
+import { isConstructorDeclaration } from 'typescript';
+import { PublicKey } from '../rsa/publicKey';
 const bc = require('bigint-conversion');
 import { RSA  as classRSA} from "../rsa/rsa";
 
@@ -7,8 +9,11 @@ let password = 'Lo que me de la gana';
 let algorithm = 'aes-256-cbc';
 let key = '89a1f34a907ff9f5d27309e73c113f8eb084f9da8a5fedc61bb1cba3f54fa5de'
 let keyBuf =Buffer.from(key, "hex")
-let keyPair;
 let rsa  = new classRSA;
+let keyPair;
+execrsa()   //ejecuta el generateRandomKeys() al iniciarse el program para tener las claves para todo el rato
+let pubKeyClient;
+
 
 ///////////////////////AES//////////////////////////////
 async function postCaso (req, res){  //AES
@@ -93,10 +98,16 @@ async function getFrase (req, res){ //me da datos de un estudiante especifico  A
 
 
 ///////////////////////////////RSA/////////////////////////////
-    async function getPublicKeyRSA(req, res) {
+
+async function execrsa(){   //genera las keyPair
+  keyPair= await rsa.generateRandomKeys();
+}
+
+async function getPublicKeyRSA(req, res) {  
 
         try {
-          keyPair = await rsa.generateRandomKeys(); //NO PONER THIS
+          //keyPair = await rsa.generateRandomKeys(); //NO PONER this.
+          
           res.status(200).send({
             e: bc.bigintToHex(keyPair["publicKey"]["e"]),
             n: bc.bigintToHex(keyPair["publicKey"]["n"])
@@ -104,48 +115,64 @@ async function getFrase (req, res){ //me da datos de un estudiante especifico  A
         }
         catch(err) {
           console.log("hola"+ err)
-          res.status(500).send ({ message: err})
-        }
-      }
-      
-
-    async function postCasoRSA(req, res) {
-        try {
-          const c = req.body.msg;
-          const m = await rsa.privateKey.decrypt(bc.hexToBigint(c))   //keyPair["privateKey"].decrypt(bc.hexToBigint(c));
-          console.log(bc.bigintToText(m))
-          return res.status(200).send({msg: bc.bigintToHex(m)})
-        }
-        catch(err) {
-          res.status(500).send ({ message: err})
-        }
-      }
-      
-    async function signMsgRSA(req, res) {
-        try {
-          const m = bc.hexToBigint(req.body.msg);
-          const s = await keyPair["privateKey"].sign(m);
-          res.status(200).send({msg: bc.bigintToHex(s)})
-        }
-        catch(err) {
-          res.status(500).send ({ message: err})
+          res.status(500).send ({ message: err})   
         }
       }
 
-    async function getFraseRSA(req, res) {
-      let msg= "Prueba frase"
-     // let encmsg= rsa.publicKey.encrypt(msg)
-        try {
-
-          res.status(200).send({msg:msg})
-        } 
-        catch (err) {
-          console.log(err)
-          res.status(500).send({msg: err})
-        }
-      }
+async function postpubKeyRSA(req, res) {   //el cliente me pasa su pubKey para encryptar el mensaje
+  try {
+    let e = req.body.e;
+    let n = req.body.n;
+    console.log("AHORA MOSTRARA LA PUBLICKEY DEL CLIENTE")
+    e = bc.hexToBigint(e)
+    n = bc.hexToBigint(n)
+    console.log("esto es la e:" + e)
+    console.log("esto es la n:" + n)
+    pubKeyClient = new PublicKey (e, n)  //creo una nueva publicKey del cliente 
+    return res.status(200).send({message: "el server ya tiene tu publicKey"})
+  }
+  catch(err) {
+    res.status(500).send ({ message: err})
+  }
+}
       
-    module.exports = {postCaso, getFrase, getFraseRSA, postCasoRSA, signMsgRSA, getPublicKeyRSA};
+
+async function postCasoRSA(req, res) {
+  try {
+    const c = req.body.msg;
+    const m = await rsa.privateKey.decrypt(bc.hexToBigint(c))   //keyPair["privateKey"].decrypt(bc.hexToBigint(c));
+    console.log(bc.bigintToText(m))
+    return res.status(200).send({msg: bc.bigintToHex(m)})
+  }
+  catch(err) {
+    res.status(500).send ({ message: err})
+  }
+}
+      
+async function signMsgRSA(req, res) {
+    try {
+      const m = bc.hexToBigint(req.body.msg);
+      const s = await keyPair["privateKey"].sign(m);
+      res.status(200).send({msg: bc.bigintToHex(s)})
+    }
+    catch(err) {
+      res.status(500).send ({ message: err})
+    }
+  }
+
+async function getFraseRSA(req, res) {
+  let msgg= "Prueba frase"
+  let encmsg= await pubKeyClient.encrypt(msgg)
+    try {
+      res.status(200).send({msg: encmsg})
+    } 
+    catch (err) {
+      console.log(err)
+      res.status(500).send({msg: err})
+    }
+  }
+  
+module.exports = {postCaso, getFrase, getFraseRSA, postCasoRSA, signMsgRSA, getPublicKeyRSA, postpubKeyRSA};
 
 
 

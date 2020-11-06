@@ -39,7 +39,7 @@ export class RSA {
     this.publicKey = new publickey(this._E, n);
 
     this.privateKey = new privatekey(d, this.publicKey);
-    console.log(privatekey)
+    //console.log(privatekey)
 
     return {publicKey: this.publicKey, privateKey: this.privateKey};
     
