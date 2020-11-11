@@ -12,7 +12,7 @@ export class PublicKey {
 
     encrypt (m) {
         m = this.bc.textToBigint(m);
-        return this.bc.bigintToText(this.bcu.modPow(m, this.e, this.n));
+        return this.bc.bigintToHex(this.bcu.modPow(m, this.e, this.n));
     }
 
     verify (s) {

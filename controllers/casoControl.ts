@@ -101,6 +101,10 @@ async function getFrase (req, res){ //me da datos de un estudiante especifico  A
 
 async function execrsa(){   //genera las keyPair
   keyPair= await rsa.generateRandomKeys();
+  console.log(rsa.publicKey.e)
+  console.log(rsa.privateKey.d)
+  console.log("SE ESTA EJECUTANDO ESTO")
+  //console.log(keyPair)
 }
 
 async function getPublicKeyRSA(req, res) {  
@@ -109,12 +113,12 @@ async function getPublicKeyRSA(req, res) {
           //keyPair = await rsa.generateRandomKeys(); //NO PONER this.
           
           res.status(200).send({
-            e: bc.bigintToHex(keyPair["publicKey"]["e"]),
-            n: bc.bigintToHex(keyPair["publicKey"]["n"])
+            e: await bc.bigintToHex(rsa.publicKey.e),
+            n: await bc.bigintToHex(rsa.publicKey.n)
           })
         }
         catch(err) {
-          console.log("hola"+ err)
+          console.log("error recibiendo la public key"+ err)
           res.status(500).send ({ message: err})   
         }
       }
@@ -125,7 +129,7 @@ async function postpubKeyRSA(req, res) {   //el cliente me pasa su pubKey para e
     let n = req.body.n;
     console.log("AHORA MOSTRARA LA PUBLICKEY DEL CLIENTE")
     e = bc.hexToBigint(e)
-    n = bc.hexToBigint(n)
+    n =  await bc.hexToBigint(n)
     console.log("esto es la e:" + e)
     console.log("esto es la n:" + n)
     pubKeyClient = new PublicKey (e, n)  //creo una nueva publicKey del cliente 
@@ -161,7 +165,8 @@ async function signMsgRSA(req, res) {
   }
 
 async function getFraseRSA(req, res) {
-  let msgg= "Prueba frase"
+  let msgg= "Prueba"
+  console.log(pubKeyClient.n)
   let encmsg= await pubKeyClient.encrypt(msgg)
     try {
       res.status(200).send({msg: encmsg})
