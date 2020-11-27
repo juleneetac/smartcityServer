@@ -4,16 +4,24 @@ import { isConstructorDeclaration } from 'typescript';
 import { PublicKey } from '../rsa/publicKey';
 const bc = require('bigint-conversion');
 import { RSA  as classRSA} from "../rsa/rsa";
+import * as objectSha from 'object-sha'
+import { bigintToHex, bigintToText, hexToBigint, textToBigint } from 'bigint-conversion';
+import { Console } from 'console';
+const got = require('got');
 
-let password = 'Lo que me de la gana';
+let password = 'Lo que me de la gana';//no se usa
 let algorithm = 'aes-256-cbc';
 let key = '89a1f34a907ff9f5d27309e73c113f8eb084f9da8a5fedc61bb1cba3f54fa5de'
 let keyBuf =Buffer.from(key, "hex")
 let rsa  = new classRSA;
-let keyPair;
+let keyPair; //no se usa
 execrsa()   //ejecuta el generateRandomKeys() al iniciarse el program para tener las claves para todo el rato
-let pubKeyClient;
-
+let pubKeyClient:PublicKey;
+let ttp;
+let norepudioMessage;
+let intID;
+let ttpPubKey: PublicKey;
+let ivc
 
 ///////////////////////AES//////////////////////////////
 async function postCaso (req, res){  //AES
@@ -101,10 +109,9 @@ async function getFrase (req, res){ //me da datos de un estudiante especifico  A
 
 async function execrsa(){   //genera las keyPair
   keyPair= await rsa.generateRandomKeys();
-  console.log(rsa.publicKey.e)
-  console.log(rsa.privateKey.d)
-  console.log("SE ESTA EJECUTANDO ESTO")
+  
   //console.log(keyPair)
+  console.log("ok")
 }
 
 async function getPublicKeyRSA(req, res) {  
@@ -127,11 +134,8 @@ async function postpubKeyRSA(req, res) {   //el cliente me pasa su pubKey para e
   try {
     let e = req.body.e;
     let n = req.body.n;
-    console.log("AHORA MOSTRARA LA PUBLICKEY DEL CLIENTE")
     e = bc.hexToBigint(e)
     n =  await bc.hexToBigint(n)
-    console.log("esto es la e:" + e)
-    console.log("esto es la n:" + n)
     pubKeyClient = new PublicKey (e, n)  //creo una nueva publicKey del cliente 
     return res.status(200).send({message: "el server ya tiene tu publicKey"})
   }
@@ -156,7 +160,7 @@ async function postCasoRSA(req, res) {
 async function signMsgRSA(req, res) {
     try {
       const m = bc.hexToBigint(req.body.msg);
-      const s = await keyPair["privateKey"].sign(m);
+      const s = await rsa.privateKey.sign(m);
       res.status(200).send({msg: bc.bigintToHex(s)})
     }
     catch(err) {
@@ -176,8 +180,130 @@ async function getFraseRSA(req, res) {
       res.status(500).send({msg: err})
     }
   }
+
+  ///////////////////////////////NO REPUDIO ///////////////////////////////////////////////
+  async function postCasoNoRepudio(req,res){
+    try {
+      await getTTPKey()
+      //req.body.body.msg= bc.bigintToText(bc.hexToBigint(req.body.body.msg))
+      const body = req.body.body; 
+      ivc = req.body.iv
+      const proof =bc.hexToBigint(req.body.proof.proof)
+       let e = await VerifyProof(proof,body)
+      if(e== "zi")
+      {        
+      
+        ttp= body.ttp
+        norepudioMessage = bigintToText(rsa.privateKey.decrypt(bc.hexToBigint(body.msg))) 
+        console.log("A ha dicho:"+ body.msg)
+        let d = new Date();
+        const unixtime = d.valueOf();
+        let body2= {type:"2",src:"A",dst:"B",ttp:body.ttp,ts:unixtime}//el body sin mensaje?
+        let prueba = await digitalSignature(body2);                 //PARA ELLO COPIAR LA FUNCION DE PROOF DE EL OTRO SITIO YM TAL       
+        let obj:Object  = {
+          body:body2,
+          proof:{type:"reception",proof: prueba, fields:["type","src","dst","ttp","ts"]}
+        }
+        intID=setInterval(getNoRepudio, 1000)
+        return res.status(200).send({obj:obj}) //ESTO ESE PUTADA
+        
+
+      }
+      else console.log("proof : " + proof + "body: " + body)
+      res.status(501).send ({ message: "sa jodio la cosa"})
+      
+    }
+    catch(err) {
+      console.log(err)
+      res.status(500).send ({ message: err})
+    }
+
+  }
+
+  async function getNoRepudio() {
+      
+        const cosaget = await getTTPobj()
+        const body = cosaget.object.body;
+        const proof =bc.hexToBigint(cosaget.object.proof.proof)
+        let e = await VerifyProof(proof,body)
+        clearInterval(intID)
+       if(e== "zi")
+       { 
+         //Esto es la clave K, tenemos que decriptar el rsa
+        let clave= bigintToText(rsa.privateKey.decrypt(bc.hexToBigint(body.msg))) 
+        console.log("Clave: :"+ body.msg)
+
+        //Aqui empezamos a decriptar el AES del primer mensaje con la K
+        let msg = norepudioMessage;
+        let iv = ivc; //convertir
+        console.log("iv antes "+ iv)
+        let ivBuf =stringToArrayBuffer(iv)
+        console.log("iv despues "+ ivBuf)
+        let msgBuf = stringToArrayBuffer(msg)
+        //console.log(req.body);
+        const decipher = crypto.createDecipheriv(algorithm, clave, ivBuf);
+        let decrypted = '';
+        let chunk;
+        decipher.on('readable', () => {
+           while (null !== (chunk = decipher.read())) {
+             decrypted += chunk.toString('utf8');
+        }
+        });
+        decipher.on('end', () => {
+            console.log("resultado "+ decrypted);
+        // Prints: some clear text data
+       });
+
+    // Encrypted with same algorithm, key and iv.
+      ;
+        decipher.write(msgBuf, 'hex');
+      
+        decipher.end();
+
+       }
+      }
+    
   
-module.exports = {postCaso, getFrase, getFraseRSA, postCasoRSA, signMsgRSA, getPublicKeyRSA, postpubKeyRSA};
+  async function getTTPobj(){
+    let response = (await got('http://localhost:7800/caso/getTTPobj'));
+    response = JSON.parse(response.body);
+    return response
+}
+async function getTTPKey(){
+  let response = (await got('http://localhost:7800/caso/publickey'));
+  response = JSON.parse(response.body);
+  ttpPubKey = new PublicKey (bc.hexToBigint(response.e), bc.hexToBigint(response.n)) 
+
+}
+
+
+  async function digitalSignature(obj:Object){
+    const digest = await objectSha.digest(obj)
+    return bc.bigintToHex(rsa.privateKey.sign(bc.hexToBigint(digest))); //si no va cambiar a hex
+  }
+  async function VerifyProof(proof:Object, body)
+  {
+    const hashobj= await objectSha.digest(body)
+    let hashproof
+    if(body.type === "5") //esto es para que si el proof es de la ttp se verifique con la pub de ttp
+      {
+        console.log("esto es de la ttp ↨")
+         hashproof= await bc.bigintToHex(ttpPubKey.verify(proof))
+      }
+    else  hashproof= await bc.bigintToText(pubKeyClient.verify(proof)) //verify de B
+    console.log("1: "+hashobj)
+    console.log("2: "+ hashproof)
+    console.log(hashobj==hashproof)
+    if (hashobj==hashproof)
+    return "zi"
+    else return "no"
+  }
+
+
+
+
+
+module.exports = {postCaso, getFrase, getFraseRSA, postCasoRSA, signMsgRSA, getPublicKeyRSA, postpubKeyRSA,postCasoNoRepudio};
 
 
 
