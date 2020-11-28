@@ -231,8 +231,8 @@ async function getFraseRSA(req, res) {
        { 
          //Esto es la clave K, tenemos que decriptar el rsa
         let clave= bigintToText(rsa.privateKey.decrypt(bc.hexToBigint(body.msg))) 
-        console.log("Clave: :"+ body.msg)
-
+        console.log("Clave: :"+ clave)
+        let claveBuf =Buffer.from(clave, "hex")
         //Aqui empezamos a decriptar el AES del primer mensaje con la K
         let msg = norepudioMessage;
         let iv = ivc; //convertir
@@ -241,7 +241,7 @@ async function getFraseRSA(req, res) {
         console.log("iv despues "+ ivBuf)
         let msgBuf = stringToArrayBuffer(msg)
         //console.log(req.body);
-        const decipher = crypto.createDecipheriv(algorithm, clave, ivBuf);
+        const decipher = crypto.createDecipheriv(algorithm, claveBuf, ivBuf);
         let decrypted = '';
         let chunk;
         decipher.on('readable', () => {
@@ -250,7 +250,7 @@ async function getFraseRSA(req, res) {
         }
         });
         decipher.on('end', () => {
-            console.log("resultado "+ decrypted);
+            console.log("resultado : "+ decrypted);
         // Prints: some clear text data
        });
 
