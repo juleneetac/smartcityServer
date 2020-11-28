@@ -160,8 +160,9 @@ async function postCasoRSA(req, res) {
 async function signMsgRSA(req, res) {
     try {
       const m = bc.hexToBigint(req.body.msg);
-      const s = await rsa.privateKey.sign(m);
-      res.status(200).send({msg: bc.bigintToHex(s)})
+      const signedbm= this.rsa.privateKey.sign(m)
+      //const s = await rsa.privateKey.sign(m);
+      res.status(200).send({msg: bc.bigintToHex(signedbm)})
     }
     catch(err) {
       res.status(500).send ({ message: err})
@@ -170,7 +171,6 @@ async function signMsgRSA(req, res) {
 
 async function getFraseRSA(req, res) {
   let msgg= "Prueba"
-  console.log(pubKeyClient.n)
   let encmsg= await pubKeyClient.encrypt(msgg)
     try {
       res.status(200).send({msg: encmsg})
@@ -195,7 +195,6 @@ async function getFraseRSA(req, res) {
       
         ttp= body.ttp
         norepudioMessage = bigintToText(rsa.privateKey.decrypt(bc.hexToBigint(body.msg))) 
-        console.log("A ha dicho:"+ body.msg)
         let d = new Date();
         const unixtime = d.valueOf();
         let body2= {type:"2",src:"A",dst:"B",ttp:body.ttp,ts:unixtime}//el body sin mensaje?
@@ -231,14 +230,11 @@ async function getFraseRSA(req, res) {
        { 
          //Esto es la clave K, tenemos que decriptar el rsa
         let clave= bigintToText(rsa.privateKey.decrypt(bc.hexToBigint(body.msg))) 
-        console.log("Clave: :"+ clave)
         let claveBuf =Buffer.from(clave, "hex")
         //Aqui empezamos a decriptar el AES del primer mensaje con la K
         let msg = norepudioMessage;
         let iv = ivc; //convertir
-        console.log("iv antes "+ iv)
         let ivBuf =stringToArrayBuffer(iv)
-        console.log("iv despues "+ ivBuf)
         let msgBuf = stringToArrayBuffer(msg)
         //console.log(req.body);
         const decipher = crypto.createDecipheriv(algorithm, claveBuf, ivBuf);
