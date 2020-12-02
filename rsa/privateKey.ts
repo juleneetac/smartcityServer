@@ -5,7 +5,8 @@ export class PrivateKey{
     publicKey: publickey;
     bcu = require('bigint-crypto-utils');
 //import * as bc from 'bigint-conversion';
-bc = require('bigint-conversion');
+    bc = require('bigint-conversion');
+    
     constructor (d, publicKey) {
         this.d = BigInt(d);
         this.publicKey = publicKey;

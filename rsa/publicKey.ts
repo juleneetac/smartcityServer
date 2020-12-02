@@ -18,5 +18,6 @@ export class PublicKey {
     verify (s) {
         return this.bcu.modPow(s, this.e, this.n);
     }
+
   }
 

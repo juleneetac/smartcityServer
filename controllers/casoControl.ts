@@ -8,6 +8,7 @@ import * as objectSha from 'object-sha'
 import { bigintToHex, bigintToText, hexToBigint, textToBigint } from 'bigint-conversion';
 import { Console } from 'console';
 const got = require('got');
+const paillierBigint = require('paillier-bigint')
 
 let password = 'Lo que me de la gana';//no se usa
 let algorithm = 'aes-256-cbc';
@@ -160,9 +161,8 @@ async function postCasoRSA(req, res) {
 async function signMsgRSA(req, res) {
     try {
       const m = bc.hexToBigint(req.body.msg);
-      const signedbm= this.rsa.privateKey.sign(m)
-      //const s = await rsa.privateKey.sign(m);
-      res.status(200).send({msg: bc.bigintToHex(signedbm)})
+      const s = await rsa.privateKey.sign(m);
+      res.status(200).send({msg: bc.bigintToHex(s)})
     }
     catch(err) {
       res.status(500).send ({ message: err})
@@ -178,6 +178,19 @@ async function getFraseRSA(req, res) {
     catch (err) {
       console.log(err)
       res.status(500).send({msg: err})
+    }
+  }
+  ///////////////////////////////FIRMA CIEGA ///////////////////////////////////////////////
+  
+  async function signMsgCiega(req, res) {   // aquí el servidor firma lo que le llega pero sin saber que es lo que le ha llegado y lo devuelve firmado
+    try {
+      const m = bc.hexToBigint(req.body.msg);
+      const signedbm = rsa.privateKey.sign(m)
+      //const s = await rsa.privateKey.sign(m);
+      res.status(200).send({msg: bc.bigintToHex(signedbm)})
+    }
+    catch(err) {
+      res.status(500).send ({ message: err})
     }
   }
 
@@ -257,8 +270,7 @@ async function getFraseRSA(req, res) {
         decipher.end();
 
        }
-      }
-    
+      }   
   
   async function getTTPobj(){
     let response = (await got('http://localhost:7800/caso/getTTPobj'));
@@ -295,11 +307,29 @@ async function getTTPKey(){
     else return "no"
   }
 
+///////////////////////////////PAILLIER (homomorphic encryption) ///////////////////////////////////////////////
+async function postSumPaillier(req, res) {
+  // const { publicKey, privateKey } = await paillierBigint.generateRandomKeys(3072)
+  //const privateKeypaillier = new paillierBigint.PrivateKey(lambda, mu, rsa.publicKey)
+  try {
+    const encryptedsum = req.body.encryptedsum;
+    console.log(encryptedsum)
+    const suma = await rsa.privateKey.decrypt(bc.hexToBigint(encryptedsum))   //keyPair["privateKey"].decrypt(bc.hexToBigint(c));
+    console.log(suma)
+    return res.status(200).send({sum: bc.bigintToHex(suma)})
+    
+  }
+  catch(err) {
+    console.log(err)
+    res.status(500).send ({ message: err})
+  }
+}
 
 
 
 
-module.exports = {postCaso, getFrase, getFraseRSA, postCasoRSA, signMsgRSA, getPublicKeyRSA, postpubKeyRSA,postCasoNoRepudio};
+
+module.exports = {postCaso, getFrase, getFraseRSA, postCasoRSA, signMsgRSA, signMsgCiega, getPublicKeyRSA, postpubKeyRSA,postCasoNoRepudio, postSumPaillier};
 
 
 
