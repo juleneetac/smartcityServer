@@ -24,7 +24,10 @@ router.post('/addPostNoRepudio', casoControl.postCasoNoRepudio);
 
 ///////////////////////////////PAILLIER (homomorphic encryption) ///////////////////////////////////////////////
 router.post('/postpaillierSum', casoControl.postSumPaillier);
+router.get('/publickeypaillier', casoControl.getPublicKeyPaillier);  
 
+/////////////////////////////// SECRET SHARING ///////////////////////////////////////////////
+router.post('/postsecretsharing', casoControl.postSecretSharing);
 
 
 module.exports = router;

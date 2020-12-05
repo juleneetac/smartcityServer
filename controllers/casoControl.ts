@@ -9,6 +9,7 @@ import { bigintToHex, bigintToText, hexToBigint, textToBigint } from 'bigint-con
 import { Console } from 'console';
 const got = require('got');
 const paillierBigint = require('paillier-bigint')
+const sss = require('shamirs-secret-sharing')
 
 let password = 'Lo que me de la gana';//no se usa
 let algorithm = 'aes-256-cbc';
@@ -22,7 +23,10 @@ let ttp;
 let norepudioMessage;
 let intID;
 let ttpPubKey: PublicKey;
-let ivc
+let ivc;
+let publicKeyPaill;
+let privateKeyPaill;
+//secretSharing()
 
 ///////////////////////AES//////////////////////////////
 async function postCaso (req, res){  //AES
@@ -109,9 +113,10 @@ async function getFrase (req, res){ //me da datos de un estudiante especifico  A
 ///////////////////////////////RSA/////////////////////////////
 
 async function execrsa(){   //genera las keyPair
-  keyPair= await rsa.generateRandomKeys();
-  
-  //console.log(keyPair)
+  keyPair = await rsa.generateRandomKeys();  //generqa keys RSA
+  const keyPairPaill = await paillierBigint.generateRandomKeys(3072) //generam keys de paillier
+  publicKeyPaill =  keyPairPaill.publicKey
+  privateKeyPaill =  keyPairPaill.privateKey
   console.log("ok")
 }
 
@@ -308,14 +313,28 @@ async function getTTPKey(){
   }
 
 ///////////////////////////////PAILLIER (homomorphic encryption) ///////////////////////////////////////////////
+async function getPublicKeyPaillier(req, res) {  
+  
+  try {
+    //keyPair = await rsa.generateRandomKeys(); //NO PONER this.
+    res.status(200).send({
+      n: await bc.bigintToHex(publicKeyPaill.n),
+      g: await bc.bigintToHex(publicKeyPaill.g)
+    })
+  }
+  catch(err) {
+    console.log("error recibiendo la public key de paillier"+ err)
+    res.status(500).send ({ message: err})   
+  }
+}
+
+
 async function postSumPaillier(req, res) {
-  // const { publicKey, privateKey } = await paillierBigint.generateRandomKeys(3072)
-  //const privateKeypaillier = new paillierBigint.PrivateKey(lambda, mu, rsa.publicKey)
+  
   try {
     const encryptedsum = req.body.encryptedsum;
     console.log(encryptedsum)
-    const suma = await rsa.privateKey.decrypt(bc.hexToBigint(encryptedsum))   //keyPair["privateKey"].decrypt(bc.hexToBigint(c));
-    console.log(suma)
+    const suma = await privateKeyPaill.decrypt(bc.hexToBigint(encryptedsum))   //keyPair["privateKey"].decrypt(bc.hexToBigint(c));
     return res.status(200).send({sum: bc.bigintToHex(suma)})
     
   }
@@ -325,11 +344,54 @@ async function postSumPaillier(req, res) {
   }
 }
 
+/////////////////////////////// SECRET SHARING ///////////////////////////////////////////////
+async function postSecretSharing(req, res) {
+  // const secret = "secret key"
+  // const shares = sss.split(secret, { shares: 7, threshold: 4 })
+  // let i = 0                                          //Ya hemos generado las partes de la clave ya no nos hace falta
+  // while (i < 7){
+  //   console.log(buf2hex(shares[i]))
+  //   i++;
+  // }
+  try {
+    const shares = req.body.shares;
+    const recovered = sss.combine([shares[0], shares[1], shares[2], shares[3]])
+
+    console.log([shares[0], shares[1], shares[2], shares[3]])
+    console.log(recovered.toString()) // 'secret key' 
+    return res.status(200).send({recovered: recovered.toString()})
+    
+  }
+  catch(err) {
+    console.log(err)
+    res.status(500).send ({ message: err})
+  }
+}
+
+function ab2str(buf) { //Array Buffer to string
+  return String.fromCharCode.apply(null, new Uint8Array(buf));
+}
+
+function buf2hex(buffer) { // ArrayBuffer to hex
+  return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+}
 
 
 
 
-module.exports = {postCaso, getFrase, getFraseRSA, postCasoRSA, signMsgRSA, signMsgCiega, getPublicKeyRSA, postpubKeyRSA,postCasoNoRepudio, postSumPaillier};
+module.exports = {postCaso, 
+                  getFrase, 
+                  getFraseRSA, 
+                  postCasoRSA, 
+                  signMsgRSA, 
+                  signMsgCiega,
+                  getPublicKeyRSA, 
+                  postpubKeyRSA,
+                  postCasoNoRepudio, 
+                  postSumPaillier,
+                  getPublicKeyPaillier,
+                  postSecretSharing
+                };
 
 
 
