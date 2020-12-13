@@ -33,11 +33,8 @@ async function postCaso (req, res){  //AES
 
     let nombre = req.body.addcaso;
     let iv = req.body.iv; //convertir
-    console.log("antes "+ iv)
     let ivBuf =stringToArrayBuffer(iv)
-    console.log("despues "+ ivBuf)
     let nombreBuf = stringToArrayBuffer(nombre)
-    console.log(req.body);
     const decipher = crypto.createDecipheriv(algorithm, keyBuf, ivBuf);
     let decrypted = '';
     let chunk;
@@ -166,8 +163,10 @@ async function postCasoRSA(req, res) {
 async function signMsgRSA(req, res) {
     try {
       const m = bc.hexToBigint(req.body.msg);
+      console.log("Yo firmo el mensaje "+ m + " del cliente:")
       const s = await rsa.privateKey.sign(m);
       res.status(200).send({msg: bc.bigintToHex(s)})
+      
     }
     catch(err) {
       res.status(500).send ({ message: err})
@@ -189,6 +188,7 @@ async function getFraseRSA(req, res) {
   
   async function signMsgCiega(req, res) {   // aquí el servidor firma lo que le llega pero sin saber que es lo que le ha llegado y lo devuelve firmado
     try {
+      console.log("firmo cegadamente: " + req.body.msg)
       const m = bc.hexToBigint(req.body.msg);
       const signedbm = rsa.privateKey.sign(m)
       //const s = await rsa.privateKey.sign(m);
@@ -254,7 +254,6 @@ async function getFraseRSA(req, res) {
         let iv = ivc; //convertir
         let ivBuf =stringToArrayBuffer(iv)
         let msgBuf = stringToArrayBuffer(msg)
-        //console.log(req.body);
         const decipher = crypto.createDecipheriv(algorithm, claveBuf, ivBuf);
         let decrypted = '';
         let chunk;
@@ -264,7 +263,7 @@ async function getFraseRSA(req, res) {
         }
         });
         decipher.on('end', () => {
-            console.log("resultado : "+ decrypted);
+            console.log("resultado de NO REPUDIO : "+ decrypted);
         // Prints: some clear text data
        });
 
@@ -294,6 +293,7 @@ async function getTTPKey(){
     const digest = await objectSha.digest(obj)
     return bc.bigintToHex(rsa.privateKey.sign(bc.hexToBigint(digest))); //si no va cambiar a hex
   }
+
   async function VerifyProof(proof:Object, body)
   {
     const hashobj= await objectSha.digest(body)
@@ -304,8 +304,8 @@ async function getTTPKey(){
          hashproof= await bc.bigintToHex(ttpPubKey.verify(proof))
       }
     else  hashproof= await bc.bigintToText(pubKeyClient.verify(proof)) //verify de B
-    console.log("1: "+hashobj)
-    console.log("2: "+ hashproof)
+    console.log("1 hash del body que nos llega: "+ hashobj)
+    console.log("2 proof: "+ hashproof)
     console.log(hashobj==hashproof)
     if (hashobj==hashproof)
     return "zi"
@@ -333,8 +333,9 @@ async function postSumPaillier(req, res) {
   
   try {
     const encryptedsum = req.body.encryptedsum;
-    console.log(encryptedsum)
+    console.log("Se ha recibido la suma ecriptada: " + encryptedsum)
     const suma = await privateKeyPaill.decrypt(bc.hexToBigint(encryptedsum))   //keyPair["privateKey"].decrypt(bc.hexToBigint(c));
+    console.log("la suma desencriptada es: " + suma)
     return res.status(200).send({sum: bc.bigintToHex(suma)})
     
   }
@@ -357,8 +358,9 @@ async function postSecretSharing(req, res) {
     const shares = req.body.shares;
     const recovered = sss.combine([shares[0], shares[1], shares[2], shares[3]])
 
+    console.log("las claves del threshold que nos envia el cliente son: ")
     console.log([shares[0], shares[1], shares[2], shares[3]])
-    console.log(recovered.toString()) // 'secret key' 
+    console.log("el combine de las claves funciona: " + recovered.toString()) // 'secret key' 
     return res.status(200).send({recovered: recovered.toString()})
     
   }
